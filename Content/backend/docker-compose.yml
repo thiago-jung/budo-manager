@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16
+    container_name: budomanager_db
+    environment:
+      POSTGRES_USER: budo_user
+      POSTGRES_PASSWORD: budo_pass
+      POSTGRES_DB: budomanager
+    ports:
+      - "5435:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U budo_user -d budomanager"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: budomanager_redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  pgdata:
