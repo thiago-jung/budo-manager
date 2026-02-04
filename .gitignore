@@ -1,0 +1,42 @@
+# --- Python (Backend FastAPI) ---
+__pycache__/
+*.py[cod]
+*\$py.class
+venv/
+.env
+.pytest_cache/
+.vs/
+.next/
+
+# --- Node.js (Backend Auxiliar) ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+combined.log
+error.log
+
+# --- Unity (Scripts e Assets) ---
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[MemoryCaptures]/
+*.csproj
+*.unitypackage
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.meta
+*.package-lock.json
+
+# --- Sistema Operacional ---
+.DS_Store
+Thumbs.db
+desktop.ini.vs/
+.next/
+*.package-lock.json
