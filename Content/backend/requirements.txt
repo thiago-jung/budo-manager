@@ -1,0 +1,28 @@
+# Web Framework e Servidor
+fastapi==0.128.0
+uvicorn==0.40.0
+python-multipart==0.0.22
+
+# Banco de Dados (PostgreSQL com suporte assíncrono para Windows)
+SQLAlchemy==2.0.46
+psycopg==3.3.2
+psycopg-binary==3.3.2
+psycopg-pool==3.3.0
+greenlet==3.3.1
+
+# Segurança e Autenticação (Nativo, sem Passlib para evitar conflitos)
+bcrypt==5.0.0
+python-jose[cryptography]==3.5.0
+cryptography==46.0.4
+
+# Configurações e Validação
+pydantic==2.12.5
+pydantic-settings==2.12.0
+python-dotenv==1.2.1
+
+# Integrações e Utilitários
+redis==7.1.0
+httpx==0.28.1
+email-validator==2.3.0
+anyio==4.12.1
+tzdata==2025.3
