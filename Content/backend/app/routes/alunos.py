@@ -8,6 +8,7 @@ from app.config.database import get_db
 from app.models.models import Aluno, Usuario
 from app.models.schemas import AlunoCreate, AlunoUpdate, AlunoResponse
 from app.services.auth_service import get_current_user
+from app.services.asaas_service import AsaasService
 
 router = APIRouter(prefix="/alunos", tags=["Alunos"])
 
@@ -32,6 +33,7 @@ async def criar_aluno(
         telefone=dados.telefone,
         email=dados.email,
         data_nascimento=dados.data_nascimento,
+        asaas_id=asaas_id
     )
     db.add(aluno)
     await db.commit()
