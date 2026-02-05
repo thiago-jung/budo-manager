@@ -23,21 +23,12 @@ budomanager/
 # Entre na pasta do backend
 cd backend
 
-# Crie um ambiente virtual Python
-python -m venv venv
-
-# Ative o ambiente virtual
-# Linux/Mac:
-source venv/bin/activate
-# Windows:
-venv\Scripts\activate
+source venv/Scripts/activate
 
 # Instale as dependências
 pip install -r requirements.txt
 
-# Copie o arquivo .env.example para .env e preencha as variáveis
-cp .env.example .env
-# Edite o .env com suas chaves (Supabase, Asaas, Evolution API)
+pip install -r requirements.txt
 
 # Inicie o banco de dados PostgreSQL local com Docker
 docker compose up -d
