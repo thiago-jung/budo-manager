@@ -1,8 +1,27 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
+import re
 
+class OnboardingCreate(BaseModel):
+    # Dados do Professor
+    admin_nome: str
+    admin_email: EmailStr
+    admin_senha: str
+
+    # Dados do Dojo
+    dojo_nome: str
+    dojo_telefone: Optional[str] = None
+    dojo_endereco: Optional[str] = None
+
+    # Validador de segurança para o telefone (Blindagem)
+    @field_validator('dojo_telefone', mode='before')
+    @classmethod
+    def limpar_telefone(cls, v):
+        if v:
+            return re.sub(r'\D', '', v)
+        return v
 
 class DojoCreate(BaseModel):
     nome: str
@@ -49,6 +68,15 @@ class AlunoCreate(BaseModel):
     telefone: Optional[str] = None
     email: Optional[str] = None
     data_nascimento: Optional[datetime] = None
+
+    # Validador que limpa CPF e Telefone antes de chegar na rota
+    @field_validator('cpf', 'telefone', mode='before')
+    @classmethod
+    def limpar_formatacao(cls, v):
+        if isinstance(v, str):
+            # Remove tudo que não é número (\D)
+            return re.sub(r'\D', '', v)
+        return v
 
 class AlunoUpdate(BaseModel):
     nome: Optional[str] = None

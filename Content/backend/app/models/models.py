@@ -41,7 +41,7 @@ class Aluno(Base):
     dojo_id = Column(UUID(as_uuid=True), ForeignKey("dojos.id"), nullable=False)
     nome = Column(String(150), nullable=False)
     cpf = Column(String(11), unique=True, nullable=True)
-    telefone = Column(String(20), nullable=True)
+    telefone = Column(String(15), nullable=True)
     email = Column(String(255), nullable=True)
     data_nascimento = Column(DateTime, nullable=True)
     faixa_atual = Column(String(30), default="Branca")
@@ -49,6 +49,9 @@ class Aluno(Base):
     ativo = Column(Boolean, default=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
 
+    graduacao_id = Column(UUID(as_uuid=True), ForeignKey("graduacoes.id"), nullable=True)
+
+    graduacao = relationship("Graduacao")
     dojo = relationship("Dojo", back_populates="alunos")
     pagamentos = relationship("Pagamento", back_populates="aluno")
     presencas = relationship("Presenca", back_populates="aluno")
@@ -80,3 +83,14 @@ class Presenca(Base):
     criado_em = Column(DateTime, default=datetime.utcnow)
 
     aluno = relationship("Aluno", back_populates="presencas")
+
+class Graduacao(Base):
+    __tablename__ = "graduacoes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    dojo_id = Column(UUID(as_uuid=True), ForeignKey("dojos.id"), nullable=False)
+    nome = Column(String(50), nullable=False) # Ex: "Faixa Azul", "Corda Verde"
+    ordem = Column(Integer, default=0) # Para ordenar a progressão
+    cor_hex = Column(String(7), nullable=True) # Para a UI brilhar com a cor da faixa
+
+    dojo = relationship("Dojo")
