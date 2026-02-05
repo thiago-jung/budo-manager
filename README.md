@@ -28,8 +28,6 @@ source venv/Scripts/activate
 # Instale as dependências
 pip install -r requirements.txt
 
-pip install -r requirements.txt
-
 # Inicie o banco de dados PostgreSQL local com Docker
 docker compose up -d
 
