@@ -8,6 +8,8 @@ from app.config.database import get_db
 from app.models.models import Presenca, Aluno, Usuario
 from app.models.schemas import PresencaCreate, PresencaResponse
 from app.services.auth_service import get_current_user
+from app.models.models import Presenca, Aluno
+from app.models.schemas import PresencaBulk
 
 router = APIRouter(prefix="/presencas", tags=["Presenças"])
 
@@ -15,6 +17,30 @@ router = APIRouter(prefix="/presencas", tags=["Presenças"])
 # ─────────────────────────────────────────────
 # POST /presencas — Registra presença
 # ─────────────────────────────────────────────
+
+@router.post("/bulk", status_code=status.HTTP_201_CREATED)
+async def registrar_presenca_em_massa(
+    dados: PresencaBulk,
+    usuario: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        for item in dados.lista_presenca:
+            # 1. Criar o registo de presença
+            nova_presenca = Presenca(
+                dojo_id=usuario.dojo_id,
+                aluno_id=item.aluno_id,
+                data=dados.data,
+                presente=item.presente
+            )
+            db.add(nova_presenca)
+
+        await db.commit()
+        return {"message": "Chamada realizada com sucesso!"}
+    except Exception:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="Erro ao registar presenças.")
+
 @router.post("/", response_model=PresencaResponse, status_code=status.HTTP_201_CREATED)
 async def registrar_presenca(
     dados: PresencaCreate,

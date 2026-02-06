@@ -31,6 +31,8 @@ class Usuario(Base):
     ativo = Column(Boolean, default=True)
     criado_em = Column(DateTime, default=datetime.utcnow)
 
+    aluno_id = Column(UUID(as_uuid=True), ForeignKey("alunos.id"), nullable=True) # Se for aluno, aponta para o registro dele
+
     dojo = relationship("Dojo", back_populates="usuarios")
 
 

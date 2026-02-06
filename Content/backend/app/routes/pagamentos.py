@@ -9,9 +9,46 @@ from app.models.schemas import PagamentoCreate, PagamentoResponse
 from app.services.auth_service import get_current_user
 from app.services.asaas_service import asaas_service
 from app.services.evolution_service import evolution_service
+from app.services.asaas_service import AsaasService
 
 router = APIRouter(prefix="/pagamentos", tags=["Pagamentos"])
 
+asaas = AsaasService()
+
+@router.get("/{pagamento_id}/pix")
+async def obter_pix_pagamento(
+    pagamento_id: str,
+    usuario: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    # 1. Busca o pagamento e valida se pertence ao aluno logado
+    result = await db.execute(
+        select(Pagamento).where(Pagamento.id == pagamento_id, Pagamento.aluno_id == usuario.aluno_id)
+    )
+    pagamento = result.scalar_one_or_none()
+
+    if not pagamento:
+        raise HTTPException(status_code=404, detail="Pagamento não encontrado.")
+
+    # 2. Busca o QR Code no Asaas Service
+    try:
+        pix_info = await asaas.obter_qrcode_pix(pagamento.asaas_id)
+        return pix_info
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Erro ao buscar dados do PIX.")
+
+@router.get("/meus")
+async def listar_meus_pagamentos(
+    usuario: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if usuario.role != "aluno" or not usuario.aluno_id:
+        raise HTTPException(status_code=403, detail="Apenas alunos podem acessar esta rota.")
+
+    result = await db.execute(
+        select(Pagamento).where(Pagamento.aluno_id == usuario.aluno_id).order_by(Pagamento.vencimento.desc())
+    )
+    return result.scalars().all()
 
 # ─────────────────────────────────────────────
 # POST /pagamentos — Cria cobrança (Asaas + BD)

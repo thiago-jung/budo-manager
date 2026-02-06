@@ -9,9 +9,47 @@ from app.models.models import Aluno, Usuario
 from app.models.schemas import AlunoCreate, AlunoUpdate, AlunoResponse
 from app.services.auth_service import get_current_user
 from app.services.asaas_service import AsaasService
+from app.services.graduacao_service import calcular_progresso_aluno
 
 router = APIRouter(prefix="/alunos", tags=["Alunos"])
 
+
+@router.post("/{aluno_id}/graduar")
+async def graduar_aluno(
+    aluno_id: str,
+    nova_gradu_id: UUID,
+    usuario: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    # 1. Buscar o aluno garantindo que pertence ao Dojo do professor
+    result = await db.execute(
+        select(Aluno).where(Aluno.id == aluno_id, Aluno.dojo_id == usuario.dojo_id)
+    )
+    aluno = result.scalar_one_or_none()
+
+    if not aluno:
+        raise HTTPException(status_code=404, detail="Aluno nao encontrado.")
+
+    # 2. Atualizar a graduação
+    aluno.graduacao_id = nova_gradu_id
+    # Opcional: Aqui você pode inserir um registro em uma tabela 'HistoricoGraduacao'
+
+    await db.commit()
+    return {"message": f"Aluno {aluno.nome} graduado com sucesso!"}
+
+@router.get("/meu-progresso")
+async def obter_meu_progresso(
+    usuario: Usuario = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    # Segurança: Apenas usuários com role 'aluno' e aluno_id vinculado podem acessar
+    if usuario.role != "aluno" or not usuario.aluno_id:
+        raise HTTPException(status_code=403, detail="Acesso restrito a alunos vinculados.")
+
+    # Chama o serviço de gamificação que criamos anteriormente
+    progresso = await calcular_progresso_aluno(str(usuario.aluno_id), db)
+
+    return progresso
 
 @router.post("/", response_model=AlunoResponse, status_code=status.HTTP_201_CREATED)
 async def criar_aluno(

@@ -1,8 +1,35 @@
 from pydantic import BaseModel, EmailStr, field_validator
-from typing import Optional
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 from uuid import UUID
 import re
+
+class PresencaItem(BaseModel):
+    aluno_id: UUID
+    presente: bool
+
+class PresencaBulk(BaseModel):
+    data: datetime
+    lista_presenca: List[PresencaItem]
+
+class AsaasWebhook(BaseModel):
+    event: str
+    payment: Dict[str, Any]
+
+
+class AtivacaoConta(BaseModel):
+    aluno_id: UUID
+    senha: str
+    confirmacao_senha: str
+
+    @field_validator('confirmacao_senha')
+    def senhas_iguais(cls, v, info):
+        if 'senha' in info.data and v != info.data['senha']:
+            # Removi o acento para evitar o erro de codec no seu ambiente
+            raise ValueError('As senhas nao coincidem')
+        return v
+
+
 
 class OnboardingCreate(BaseModel):
     # Dados do Professor

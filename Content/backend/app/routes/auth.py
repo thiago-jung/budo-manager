@@ -4,9 +4,12 @@ from sqlalchemy import select
 from uuid import UUID
 
 from app.config.database import get_db
-from app.models.models import Usuario, Dojo, Graduacao
-from app.models.schemas import UsuarioCreate, LoginRequest, TokenResponse, UsuarioResponse, OnboardingCreate
+from app.models.models import Usuario, Dojo, Graduacao, Aluno
+from app.models.schemas import UsuarioCreate, LoginRequest, AtivacaoConta
+from app.models.schemas import TokenResponse, UsuarioResponse, OnboardingCreate
 from app.services.auth_service import get_password_hash, verify_password, create_access_token
+
+
 
 FAIXAS_PADRAO = [
     {"nome": "Branca", "ordem": 1, "cor": "#FFFFFF"},
@@ -20,6 +23,43 @@ FAIXAS_PADRAO = [
 ]
 
 router = APIRouter(prefix="/auth", tags=["Autenticação"])
+
+
+@router.post("/ativar-conta", status_code=status.HTTP_201_CREATED)
+async def ativar_conta_aluno(dados: AtivacaoConta, db: AsyncSession = Depends(get_db)):
+    # 1. Buscar o registro do Aluno
+    result = await db.execute(select(Aluno).where(Aluno.id == dados.aluno_id))
+    aluno = result.scalar_one_or_none()
+
+    if not aluno:
+        raise HTTPException(status_code=404, detail="Convite de ativação inválido.")
+
+    if not aluno.email:
+        raise HTTPException(status_code=400, detail="Aluno não possui e-mail cadastrado.")
+
+    # 2. Verificar se já existe um usuário para este e-mail
+    result_user = await db.execute(select(Usuario).where(Usuario.email == aluno.email))
+    if result_user.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Esta conta já foi ativada.")
+
+    try:
+        # 3. Criar o Usuário com role 'aluno'
+        novo_usuario = Usuario(
+            dojo_id=aluno.dojo_id,
+            aluno_id=aluno.id,
+            email=aluno.email,
+            nome=aluno.nome,
+            senha_hash=get_password_hash(dados.senha),
+            role="aluno"
+        )
+        db.add(novo_usuario)
+        await db.commit()
+
+        return {"message": "Conta ativada com sucesso! Agora você pode fazer login."}
+    except Exception:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="Erro ao ativar conta.")
+
 
 @router.post("/onboard", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def onboard_professor(dados: OnboardingCreate, db: AsyncSession = Depends(get_db)):
