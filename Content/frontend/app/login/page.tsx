@@ -2,6 +2,7 @@
 import { useState, FormEvent } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import * as React from "react";
 
 export default function LoginPage() {
@@ -79,7 +80,7 @@ export default function LoginPage() {
                     </form>
 
                     <p className="text-center text-xs text-gray-400 mt-6">
-                        Não tem conta? Peça ao administrador do seu dojo.
+                        É um professor? <Link href="/register" className="text-accent font-semibold hover:underline">Registre seu Dojo aqui</Link>.
                     </p>
                 </div>
             </div>
