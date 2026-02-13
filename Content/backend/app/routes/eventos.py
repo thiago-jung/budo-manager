@@ -9,8 +9,8 @@ from typing import List
 from uuid import UUID
 
 from app.config.database import get_db
-from app.models.models import Evento, InscricaoEvento, Usuario, Aluno
-from app.models.schemas import EventoCreate, EventoResponse, GerarChaveRequest
+from app.models.models import Evento, InscricaoEvento, Usuario, Aluno, CategoriaEvento
+from app.models.schemas import EventoCreate, EventoResponse, GerarChaveRequest, InscricaoRequest, InscricaoExternaRequest
 from app.services.auth_service import get_current_user
 from app.services.asaas_service import asaas_service
 from app.services.evolution_service import evolution_service
