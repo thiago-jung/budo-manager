@@ -82,6 +82,95 @@ async def inscrever_aluno_evento(
     await db.commit()
     return {"message": "Inscrição realizada com sucesso!"}
 
+@router.post("/{evento_id}/inscrever-externo")
+async def inscrever_externo_evento(
+    evento_id: UUID,
+    dados: InscricaoExternaRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    # 1. Verificar se o evento existe e é público
+    result_ev = await db.execute(select(Evento).where(Evento.id == evento_id))
+    evento = result_ev.scalar_one_or_none()
+    if not evento:
+        raise HTTPException(status_code=404, detail="Evento não encontrado.")
+    
+    if evento.tipo != "publico":
+        raise HTTPException(status_code=403, detail="Este evento não aceita inscrições externas.")
+
+    # 2. Verificar se a categoria existe
+    result_cat = await db.execute(
+        select(CategoriaEvento).where(
+            CategoriaEvento.id == dados.categoria_id,
+            CategoriaEvento.evento_id == evento_id
+        )
+    )
+    if not result_cat.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Categoria inválida.")
+
+    # 3. Criar ou Localizar Aluno (pelo e-mail/telefone)
+    # Atletas externos são vinculados ao dojo do evento
+    result_al = await db.execute(
+        select(Aluno).where(
+            (Aluno.email == dados.email) | (Aluno.telefone == dados.telefone),
+            (Aluno.dojo_id == evento.dojo_id)
+        )
+    )
+    aluno = result_al.scalar_one_or_none()
+
+    if not aluno:
+        aluno = Aluno(
+            nome=dados.nome,
+            email=dados.email,
+            telefone=dados.telefone,
+            dojo_id=evento.dojo_id,
+            ativo=False # Marcado como inativo pois é apenas um inscrito externo por enquanto
+        )
+        db.add(aluno)
+        await db.flush()
+
+    # 4. Verificar se já está inscrito
+    result_ins = await db.execute(
+        select(InscricaoEvento).where(
+            InscricaoEvento.evento_id == evento_id,
+            InscricaoEvento.aluno_id == aluno.id
+        )
+    )
+    if result_ins.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Você já está inscrito neste evento.")
+
+    # 5. Criar Inscrição
+    nova_inscricao = InscricaoEvento(
+        evento_id=evento_id,
+        aluno_id=aluno.id,
+        categoria_id=dados.categoria_id,
+        pago=(evento.valor_inscricao <= 0)
+    )
+
+    # 6. Cobrança e Notificação
+    if evento.valor_inscricao > 0:
+        # Garantir cadastro no Asaas para o externo
+        if not aluno.asaas_id:
+            customer = await asaas_service.criar_cliente(aluno.nome, aluno.email, aluno.telefone)
+            aluno.asaas_id = customer.get("id")
+
+        cobranca = await asaas_service.criar_pagamento(
+            customer_id=aluno.asaas_id,
+            valor=evento.valor_inscricao,
+            vencimento=evento.data_evento.strftime("%Y-%m-%d")
+        )
+        nova_inscricao.asaas_payment_id = cobranca.get("id")
+
+        msg = f"Olá {aluno.nome}! Recebemos sua inscrição externa para o evento {evento.titulo}. Pague aqui: {cobranca.get('invoiceUrl')}"
+        await evolution_service.enviar_mensagem(aluno.telefone, msg)
+
+    db.add(nova_inscricao)
+    await db.commit()
+    
+    return {
+        "message": "Inscrição realizada! Verifique seu WhatsApp para o pagamento.",
+        "pago": nova_inscricao.pago
+    }
+
 @router.post("/", response_model=EventoResponse)
 async def criar_evento(
     dados: EventoCreate,

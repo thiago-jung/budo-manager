@@ -59,6 +59,12 @@ class EventoResponse(BaseModel):
 class InscricaoRequest(BaseModel):
     categoria_id: UUID
 
+class InscricaoExternaRequest(BaseModel):
+    nome: str
+    email: EmailStr
+    telefone: str
+    categoria_id: UUID
+
 class GerarChaveRequest(BaseModel):
     categoria_id: UUID
     metodo: str = "simples" # simples (mata-mata) ou pontos
