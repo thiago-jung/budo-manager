@@ -1,179 +1,179 @@
-﻿"use client";
+"use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import api from "@/services/api";
-import XPBar from "@/components/XPBar";
-import * as React from "react";
+import api, { eventosAPI } from "@/services/api";
+import ProtectedRoute from "@/middleware/ProtectedRoute";
+import { Shield, Zap, Target, ArrowRight, Trophy } from "lucide-react";
+import { toast } from "react-hot-toast";
 
-export default function AlunoDashboard() {
-    const { usuario } = useAuth(); // Certifique-se que o AuthContext provê o objeto usuario
-    const [progresso, setProgresso] = useState<any>(null);
-    const [pagamentos, setPagamentos] = useState<any[]>([]);
-    const [pixData, setPixData] = useState<{ qrCode: string, copyPaste: string } | null>(null);
-    const [loadingPix, setLoadingPix] = useState(false);
-    const [copiado, setCopiado] = useState(false);
+function AlunoDashboard() {
+    const { user } = useAuth();
+    const [stats, setStats] = useState<any>(null);
+    const [financeiro, setFinanceiro] = useState<any[]>([]);
+    const [eventosPublicos, setEventosPublicos] = useState<any[]>([]);
+    const [inscritoLoading, setInscritoLoading] = useState<string | null>(null);
+    const [categoriaSelecionada, setCategoriaSelecionada] = useState<{ [eventoId: string]: string }>({});
 
+    // 1. Carregar Dados Iniciais e Feed de Eventos
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [progRes, pagRes] = await Promise.all([
-                    api.get("/alunos/meu-progresso"),
-                    api.get("/pagamentos/meus")
-                ]);
-                setProgresso(progRes.data);
-                setPagamentos(pagRes.data);
-            } catch (err) {
-                console.error("Erro ao carregar dados do aluno", err);
-            }
-        };
-        fetchData();
-    }, []);
-
-    const handlePagarPix = async (pagamentoId: string) => {
-        setLoadingPix(true);
-        try {
-            const res = await api.get(`/pagamentos/${pagamentoId}/pix`);
-            setPixData({
-                qrCode: res.data.encodedImage, // Imagem em Base64 vinda do Asaas
-                copyPaste: res.data.payload     // Chave Copia e Cola vinda do Asaas
+        if (user) {
+            Promise.all([
+                api.get("/alunos/meu-progresso"),
+                api.get("/pagamentos/meus"),
+                eventosAPI.listarFeed() // Carrega as competições abertas
+            ]).then(([prog, pag, ev]) => {
+                setStats(prog.data);
+                setFinanceiro(pag.data);
+                setEventosPublicos(ev.data);
+            }).catch(() => {
+                toast.error("Erro ao carregar dados do dashboard.");
             });
-        } catch (err) {
-            alert("Erro ao gerar PIX. Tente novamente mais tarde.");
+        }
+    }, [user]);
+
+    // 2. Lógica de Inscrição Profissional
+    const handleInscricao = async (evento: any) => {
+        const catId = categoriaSelecionada[evento.id];
+        
+        if (evento.tipo === 'publico' && !catId) {
+            toast.error("Selecione uma categoria para competir.");
+            return;
+        }
+
+        if (!confirm(`Confirmar inscrição em "${evento.titulo}" por R$ ${evento.valor_inscricao.toFixed(2)}?`)) return;
+
+        setInscritoLoading(evento.id);
+        try {
+            const res = await eventosAPI.inscrever(evento.id, catId);
+            const { payment_url } = res.data;
+
+            if (payment_url) {
+                toast.success("Inscrição recebida! Pague para confirmar sua vaga.");
+                window.open(payment_url, "_blank");
+            } else {
+                toast.success("Inscrição realizada com sucesso!");
+            }
+
+            const ev = await eventosAPI.listarFeed();
+            setEventosPublicos(ev.data);
+        } catch (error: any) {
+            toast.error(error.response?.data?.detail || "Erro ao processar inscrição.");
         } finally {
-            setLoadingPix(false);
+            setInscritoLoading(null);
         }
     };
 
-    const copyToClipboard = () => {
-        if (pixData?.copyPaste) {
-            navigator.clipboard.writeText(pixData.copyPaste);
-            setCopiado(true);
-            setTimeout(() => setCopiado(false), 2000);
-        }
-    };
-
-    if (!progresso) {
-        return (
-            <div className="min-h-screen bg-secondary flex items-center justify-center">
-                <p className="text-white font-bold animate-pulse">Carregando seus atributos...</p>
-            </div>
-        );
-    }
+    const pendentes = financeiro.filter(p => p.status !== 'pago').length;
 
     return (
-        <div className="min-h-screen bg-secondary p-4 md:p-8">
-            {/* MODAL DE PIX */}
-            {pixData && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl">
-                        <h3 className="text-xl font-bold text-gray-800">Pagamento via PIX</h3>
-
-                        <img
-                            src={`data:image/png;base64,${pixData.qrCode}`}
-                            alt="QR Code PIX"
-                            className="w-64 h-64 mx-auto border-4 border-gray-100 rounded-xl"
-                        />
-
-                        <div className="space-y-2">
-                            <div className="bg-gray-50 p-3 rounded-xl border border-dashed border-gray-300 relative group">
-                                <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Código Copia e Cola</p>
-                                <p className="text-[10px] break-all text-gray-600 font-mono line-clamp-2">
-                                    {pixData.copyPaste}
-                                </p>
-                            </div>
-
-                            <button
-                                onClick={copyToClipboard}
-                                className={`w-full py-3 rounded-xl text-xs font-bold transition-all ${copiado
-                                        ? "bg-green-500 text-white"
-                                        : "bg-gray-800 text-white hover:bg-black"
-                                    }`}
-                            >
-                                {copiado ? "✓ COPIADO!" : "COPIAR CÓDIGO PIX"}
-                            </button>
-                        </div>
-
-                        <button
-                            onClick={() => { setPixData(null); setCopiado(false); }}
-                            className="text-gray-400 text-xs font-bold hover:text-gray-600 uppercase tracking-widest pt-2"
-                        >
-                            Fechar
-                        </button>
-                    </div>
+        <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8">
+            {/* Header com Faixa */}
+            <div className="bg-white rounded-[2.5rem] p-8 shadow-2xl flex flex-col md:flex-row items-center gap-8 border-b-[12px] border-accent relative overflow-hidden">
+                <div className="w-32 h-32 bg-secondary rounded-3xl flex items-center justify-center text-5xl shadow-inner border-4 border-gray-100">
+                    🥋
                 </div>
-            )}
-
-            <div className="max-w-4xl mx-auto space-y-6">
-                {/* HEADER: CHARACTER CARD */}
-                <div className="bg-white rounded-3xl p-6 shadow-2xl flex flex-col md:flex-row items-center gap-6 border-b-8 border-accent">
-                    <div className="w-24 h-24 bg-gray-100 rounded-2xl flex items-center justify-center text-4xl shadow-inner border border-gray-200">
-                        🥋
-                    </div>
-                    <div className="flex-1 text-center md:text-left">
-                        <h1 className="text-3xl font-black text-gray-800 uppercase italic">
-                            {usuario?.nome || "Combatente"}
-                        </h1>
-                        <p className="text-accent font-bold tracking-widest">
-                            FAIXA {progresso.faixa_nome?.toUpperCase() || "BRANCA"}
-                        </p>
-                    </div>
+                <div className="flex-1 text-center md:text-left">
+                    <h1 className="text-4xl font-black text-secondary uppercase italic leading-none">
+                        {user?.nome?.split(' ')[0] || "Combatente"}
+                    </h1>
+                    <p className="text-accent font-black tracking-[0.2em] mt-2">
+                        FAIXA {stats?.faixa_nome?.toUpperCase() || "BRANCA"}
+                    </p>
                 </div>
+            </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* COLUNA 1: PROGRESSO/XP */}
-                    <div className="bg-white rounded-3xl p-6 shadow-xl space-y-6">
-                        <h2 className="text-lg font-black text-gray-700 uppercase italic flex items-center gap-2">
-                            <span className="text-accent">◈</span> Atributos e XP
-                        </h2>
+            {/* Cards de Status */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <CardAtributo
+                    titulo="Resistência"
+                    sub="Treinos Totais"
+                    valor={stats?.total_aulas || 0}
+                    icon={<Shield className="text-blue-500" />}
+                    href="/aluno/progresso#historico"
+                    cor="border-blue-500"
+                />
+                <CardAtributo
+                    titulo="Foco (XP)"
+                    sub="Próximo Nível"
+                    valor={`${stats?.progresso_percentual?.toFixed(0) || 0}%`}
+                    icon={<Zap className="text-accent" />}
+                    href="/aluno/progresso#graduacao"
+                    cor="border-accent"
+                />
+                <CardAtributo
+                    titulo="Tesouraria"
+                    sub="Contas Pendentes"
+                    valor={pendentes}
+                    icon={<Target className="text-red-500" />}
+                    href="/aluno/pagamentos"
+                    cor="border-red-500"
+                />
+            </div>
 
-                        <XPBar percentual={progresso.progresso_percentual} aulas={progresso.total_aulas} />
-
-                        <div className="grid grid-cols-2 gap-4 pt-4">
-                            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                <p className="text-[10px] text-gray-400 uppercase font-bold">Status</p>
-                                <p className="text-sm font-bold text-green-600 uppercase">Em Combate</p>
-                            </div>
-                            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                <p className="text-[10px] text-gray-400 uppercase font-bold">Pronto Exame</p>
-                                <p className={`text-sm font-bold ${progresso.pronto_para_exame ? "text-accent" : "text-gray-400"}`}>
-                                    {progresso.pronto_para_exame ? "DISPONÍVEL" : "BLOQUEADO"}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* COLUNA 2: FINANCEIRO */}
-                    <div className="bg-white rounded-3xl p-6 shadow-xl space-y-4">
-                        <h2 className="text-lg font-black text-gray-700 uppercase italic flex items-center gap-2">
-                            <span className="text-accent">◈</span> Mensalidades
-                        </h2>
-
-                        <div className="space-y-3">
-                            {pagamentos.length === 0 ? (
-                                <p className="text-sm text-gray-400 italic">Nenhuma cobrança pendente.</p>
-                            ) : (
-                                pagamentos.map((pag) => (
-                                    <div key={pag.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-accent transition-colors">
-                                        <div>
-                                            <p className="text-sm font-bold text-gray-800">
-                                                Venc: {new Date(pag.vencimento).toLocaleDateString('pt-BR')}
-                                            </p>
-                                            <p className="text-xs text-gray-400 font-medium">R$ {pag.valor.toFixed(2)}</p>
+            {/* Feed de Eventos Públicos */}
+            <div className="bg-white rounded-[2.5rem] p-6 shadow-xl border-l-8 border-accent">
+                <h3 className="text-xl font-black text-secondary uppercase italic mb-4 flex items-center gap-2">
+                    <Trophy className="text-accent" /> Próximas Competições
+                </h3>
+                <div className="grid gap-4">
+                    {eventosPublicos.length === 0 ? (
+                        <p className="text-gray-400 text-sm italic p-4">Nenhuma competição aberta no momento.</p>
+                    ) : (
+                        eventosPublicos.map(ev => (
+                            <div key={ev.id} className="flex flex-col md:flex-row justify-between md:items-center p-4 bg-gray-50 rounded-2xl border-2 border-transparent hover:border-accent/20 transition-all gap-4">
+                                <div className="flex-1">
+                                    <p className="font-bold text-secondary text-lg">{ev.titulo}</p>
+                                    <p className="text-[10px] font-black uppercase text-gray-400">
+                                        {new Date(ev.data_evento).toLocaleDateString('pt-BR')} • {ev.valor_inscricao > 0 ? `R$ ${ev.valor_inscricao.toFixed(2)}` : 'Gratuito'}
+                                    </p>
+                                    
+                                    {/* Seletor de Categoria */}
+                                    {ev.categorias && ev.categorias.length > 0 && (
+                                        <div className="mt-3">
+                                            <select 
+                                                className="w-full md:w-auto bg-white border border-gray-200 rounded-lg text-xs font-bold p-2 text-gray-600 outline-none focus:border-accent"
+                                                value={categoriaSelecionada[ev.id] || ""}
+                                                onChange={(e) => setCategoriaSelecionada({...categoriaSelecionada, [ev.id]: e.target.value})}
+                                            >
+                                                <option value="">Escolha sua categoria...</option>
+                                                {ev.categorias.map((cat: any) => (
+                                                    <option key={cat.id} value={cat.id}>{cat.nome} ({cat.genero})</option>
+                                                ))}
+                                            </select>
                                         </div>
-                                        <button
-                                            onClick={() => handlePagarPix(pag.id)}
-                                            disabled={loadingPix}
-                                            className="bg-accent text-white px-4 py-2 rounded-xl text-xs font-bold hover:scale-105 transition-all active:scale-95 disabled:opacity-50"
-                                        >
-                                            {loadingPix ? "..." : "PAGAR PIX"}
-                                        </button>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
+                                    )}
+                                </div>
+                                
+                                <button
+                                    onClick={() => handleInscricao(ev)}
+                                    disabled={inscritoLoading === ev.id}
+                                    className="bg-secondary text-white px-8 py-3 rounded-xl text-xs font-black uppercase italic hover:bg-primary transition-all disabled:opacity-50 shadow-lg shadow-secondary/20"
+                                >
+                                    {inscritoLoading === ev.id ? "A Processar..." : "Confirmar Inscrição"}
+                                </button>
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
         </div>
     );
 }
+
+// Componente Interno de Card
+function CardAtributo({ titulo, sub, valor, icon, href, cor }: any) {
+    return (
+        <Link href={href} className={`bg-white rounded-3xl p-6 shadow-xl border-l-8 ${cor} hover:scale-[1.03] transition-all cursor-pointer group`}>
+            <div className="flex justify-between items-start mb-4">
+                <div className="p-3 bg-gray-50 rounded-2xl">{icon}</div>
+                <ArrowRight size={16} className="text-gray-300 group-hover:text-accent group-hover:translate-x-1 transition-all" />
+            </div>
+            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{sub}</p>
+            <h3 className="text-2xl font-black text-secondary mt-1 uppercase italic">{titulo}</h3>
+            <p className="text-4xl font-black text-secondary mt-2">{valor}</p>
+        </Link>
+    );
+}
+
+export default ProtectedRoute(AlunoDashboard);

@@ -27,4 +27,12 @@ export const pagamentosAPI = {
     criar: (dados: any) => api.post("/pagamentos", dados),
 };
 
+export const eventosAPI = {
+    criar: (dados: any) => api.post("/eventos", dados),
+    listarMeus: () => api.get("/eventos/meus"),
+    listarFeed: () => api.get("/eventos/feed"),
+    inscrever: (eventoId: string, categoriaId: string) => api.post(`/eventos/${eventoId}/inscrever`, { categoria_id: categoriaId }),
+    gerarChaves: (eventoId: string, categoriaId: string) => api.post(`/eventos/${eventoId}/gerar-chaves`, { categoria_id: categoriaId }),
+};
+
 export default api;
