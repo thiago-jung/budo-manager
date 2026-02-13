@@ -4,14 +4,16 @@ import { useAuth } from "@/context/AuthContext";
 import ProtectedRoute from "@/middleware/ProtectedRoute";
 import DashboardLayout from "@/components/DashboardLayout";
 import api from "@/services/api";
-import { Calendar, Trophy, Users, Plus, Zap, Globe, Lock } from "lucide-react";
+import { Calendar, Trophy, Users, Plus, Zap, Globe, Lock, Eye } from "lucide-react";
 import * as React from "react";
+import BracketView from "@/components/BracketView";
 
 function EventosPage() {
     const { user } = useAuth();
     const [eventos, setEventos] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
+    const [categoriaVisualizar, setCategoriaVisualizar] = useState<{eventoId: string, catId: string, chaves: any} | null>(null);
 
     // Estado do formulário
     const [novoEvento, setNovoEvento] = useState({
@@ -240,16 +242,43 @@ function EventosPage() {
                                         {evento.categorias.map((cat: any) => (
                                             <div key={cat.id} className="flex items-center gap-2 bg-gray-50 border p-2 rounded-lg">
                                                 <span className="text-xs font-bold text-gray-700">{cat.nome}</span>
-                                                <button 
-                                                    onClick={() => gerarChaves(evento.id, cat.id)}
-                                                    className="bg-secondary/10 text-secondary p-1 rounded hover:bg-secondary/20 transition-colors"
-                                                    title="Gerar/Atualizar Chaves"
-                                                >
-                                                    <Zap size={12} />
-                                                </button>
+                                                <div className="flex gap-1">
+                                                    <button 
+                                                        onClick={() => gerarChaves(evento.id, cat.id)}
+                                                        className="bg-secondary/10 text-secondary p-1 rounded hover:bg-secondary/20 transition-colors"
+                                                        title="Gerar/Atualizar Chaves"
+                                                    >
+                                                        <Zap size={12} />
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => {
+                                                            const chavesAll = evento.chaves_json ? JSON.parse(evento.chaves_json) : {};
+                                                            setCategoriaVisualizar({
+                                                                eventoId: evento.id,
+                                                                catId: cat.id,
+                                                                chaves: chavesAll[cat.id] || null
+                                                            });
+                                                        }}
+                                                        className="bg-primary/10 text-primary p-1 rounded hover:bg-primary/20 transition-colors"
+                                                        title="Visualizar Chaves"
+                                                    >
+                                                        <Eye size={12} />
+                                                    </button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
+                                    
+                                    {/* Visualização da Chave Selecionada */}
+                                    {categoriaVisualizar?.eventoId === evento.id && (
+                                        <div className="mt-4 animate-in zoom-in-95 duration-200">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <p className="text-[10px] font-bold text-secondary uppercase italic">Árvore de Competição</p>
+                                                <button onClick={() => setCategoriaVisualizar(null)} className="text-[10px] text-gray-400 hover:text-red-500">Fechar</button>
+                                            </div>
+                                            <BracketView chaves={categoriaVisualizar.chaves} />
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
