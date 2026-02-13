@@ -4,6 +4,65 @@ from datetime import datetime
 from uuid import UUID
 import re
 
+class GraduarRequest(BaseModel):
+    nova_gradu_id: UUID
+
+class GraduacaoCreate(BaseModel):
+    nome: str
+    ordem: int
+    cor_hex: Optional[str] = "#FFFFFF"
+    aulas_necessarias: int
+
+class GraduacaoResponse(BaseModel):
+    id: UUID
+    nome: str
+    ordem: int
+    cor_hex: Optional[str]
+    aulas_necessarias: int
+    model_config = {"from_attributes": True}
+
+class CategoriaCreate(BaseModel):
+    nome: str
+    genero: Optional[str] = "Misto"
+    peso_min: Optional[float] = None
+    peso_max: Optional[float] = None
+    idade_min: Optional[int] = None
+    idade_max: Optional[int] = None
+    faixa_permitida: Optional[str] = None
+
+class CategoriaResponse(BaseModel):
+    id: UUID
+    nome: str
+    genero: Optional[str]
+    model_config = {"from_attributes": True}
+
+class EventoCreate(BaseModel):
+    titulo: str
+    descricao: Optional[str] = None
+    data_evento: datetime
+    tipo: str = "interno"
+    visivel_rede: bool = False
+    valor_inscricao: float = 0.0
+    categorias: List[CategoriaCreate] = []
+
+class EventoResponse(BaseModel):
+    id: UUID
+    titulo: str
+    tipo: str
+    data_evento: datetime
+    visivel_rede: bool
+    promovido: bool
+    status: str
+    categorias: List[CategoriaResponse] = []
+    model_config = {"from_attributes": True}
+
+class InscricaoRequest(BaseModel):
+    categoria_id: UUID
+
+class GerarChaveRequest(BaseModel):
+    categoria_id: UUID
+    metodo: str = "simples" # simples (mata-mata) ou pontos
+
 class PresencaItem(BaseModel):
     aluno_id: UUID
     presente: bool
@@ -42,7 +101,7 @@ class OnboardingCreate(BaseModel):
     dojo_telefone: Optional[str] = None
     dojo_endereco: Optional[str] = None
 
-    # Validador de segurança para o telefone (Blindagem)
+    # Validador de seguranÃ§a para o telefone (Blindagem)
     @field_validator('dojo_telefone', mode='before')
     @classmethod
     def limpar_telefone(cls, v):
@@ -95,13 +154,14 @@ class AlunoCreate(BaseModel):
     telefone: Optional[str] = None
     email: Optional[str] = None
     data_nascimento: Optional[datetime] = None
+    data_inicio: Optional[datetime] = None
 
     # Validador que limpa CPF e Telefone antes de chegar na rota
     @field_validator('cpf', 'telefone', mode='before')
     @classmethod
     def limpar_formatacao(cls, v):
         if isinstance(v, str):
-            # Remove tudo que não é número (\D)
+            # Remove tudo que nÃ£o Ã© nÃºmero (\D)
             return re.sub(r'\D', '', v)
         return v
 
@@ -117,6 +177,8 @@ class AlunoResponse(BaseModel):
     dojo_id: UUID
     nome: str
     cpf: Optional[str]
+    data_nascimento: Optional[datetime]
+    data_inicio: datetime
     telefone: Optional[str]
     email: Optional[str]
     faixa_atual: str
